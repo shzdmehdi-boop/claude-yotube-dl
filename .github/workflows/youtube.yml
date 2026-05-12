@@ -38,15 +38,15 @@ jobs:
           fi
 
           if [ "${{ inputs.quality }}" = "audio-only" ]; then
-            yt-dlp $COOKIE_ARG --js-runtimes node \
+            yt-dlp $COOKIE_ARG --js-runtimes node --remote-components ejs:github \
               -x --audio-format mp3 \
               -o "videos/%(title)s.%(ext)s" "${{ inputs.url }}"
           elif [ "${{ inputs.quality }}" = "best" ]; then
-            yt-dlp $COOKIE_ARG --js-runtimes node \
+            yt-dlp $COOKIE_ARG --js-runtimes node --remote-components ejs:github \
               -f "bestvideo+bestaudio" --merge-output-format mp4 \
               -o "videos/%(title)s.%(ext)s" "${{ inputs.url }}"
           else
-            yt-dlp $COOKIE_ARG --js-runtimes node \
+            yt-dlp $COOKIE_ARG --js-runtimes node --remote-components ejs:github \
               -f "bestvideo[height<=${{ inputs.quality }}]+bestaudio" --merge-output-format mp4 \
               -o "videos/%(title)s.%(ext)s" "${{ inputs.url }}"
           fi
