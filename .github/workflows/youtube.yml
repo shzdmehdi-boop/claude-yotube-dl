@@ -19,20 +19,42 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install yt-dlp and ffmpeg
+      - name: Install dependencies
         run: |
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg nodejs
           pip install yt-dlp
 
+      - name: Setup yt-dlp with Node.js EJS
+        run: |
+          npm install -g yt-dlp-ejs
+          yt-dlp --version
+
       - name: Download video
+        env:
+          YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
         run: |
           mkdir -p videos
-          if [ "${{ inputs.quality }}" = "audio-only" ]; then
-            yt-dlp -x --audio-format mp3 -o "videos/%(title)s.%(ext)s" "${{ inputs.url }}"
-          elif [ "${{ inputs.quality }}" = "best" ]; then
-            yt-dlp -f "bestvideo+bestaudio" --merge-output-format mp4 -o "videos/%(title)s.%(ext)s" "${{ inputs.url }}"
+
+          # Write cookies if provided
+          if [ -n "$YOUTUBE_COOKIES" ]; then
+            echo "$YOUTUBE_COOKIES" | base64 -d > cookies.txt
+            COOKIE_ARG="--cookies cookies.txt"
           else
-            yt-dlp -f "bestvideo[height<=${{ inputs.quality }}]+bestaudio" --merge-output-format mp4 -o "videos/%(title)s.%(ext)s" "${{ inputs.url }}"
+            COOKIE_ARG=""
+          fi
+
+          if [ "${{ inputs.quality }}" = "audio-only" ]; then
+            yt-dlp $COOKIE_ARG --js-runtimes node \
+              -x --audio-format mp3 \
+              -o "videos/%(title)s.%(ext)s" "${{ inputs.url }}"
+          elif [ "${{ inputs.quality }}" = "best" ]; then
+            yt-dlp $COOKIE_ARG --js-runtimes node \
+              -f "bestvideo+bestaudio" --merge-output-format mp4 \
+              -o "videos/%(title)s.%(ext)s" "${{ inputs.url }}"
+          else
+            yt-dlp $COOKIE_ARG --js-runtimes node \
+              -f "bestvideo[height<=${{ inputs.quality }}]+bestaudio" --merge-output-format mp4 \
+              -o "videos/%(title)s.%(ext)s" "${{ inputs.url }}"
           fi
 
       - name: Upload as artifact
