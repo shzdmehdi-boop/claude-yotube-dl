@@ -32,7 +32,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz
-          # This package is the secret weapon to fake being a real Chrome Browser
           pip install curl-cffi
 
       - name: Download Video
@@ -42,9 +41,15 @@ jobs:
           mkdir -p videos
           echo "$COOKIES" > cookies.txt
           
-          # We use --clients to fake being an iPhone/Android app
-          # We use --impersonate to fake being Google Chrome
-          yt-dlp --cookies cookies.txt --clients "ios,android,web" --impersonate "chrome" -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" --merge-output-format mp4 -o "videos/%(title)s.%(ext)s" "${{ github.event.inputs.youtube_link }}"
+          # FIXED TYPO: Now correctly tells yt-dlp to use the iOS and Android apps!
+          yt-dlp \
+            --cookies cookies.txt \
+            --extractor-args "youtube:client=ios,android" \
+            --impersonate "chrome" \
+            -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
+            --merge-output-format mp4 \
+            -o "videos/%(title)s.%(ext)s" \
+            "${{ github.event.inputs.youtube_link }}"
 
       - name: Upload Video for you to download
         uses: actions/upload-artifact@v4
