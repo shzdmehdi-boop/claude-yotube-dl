@@ -60,3 +60,50 @@ jobs:
       - name: Split large files
         run: |
           cd videos
+          for file in *; do
+            if [ -f "$file" ] && [ "$file" != "README.md" ]; then
+              size=$(stat -c%s "$file")
+              if [ $size -gt 94371840 ]; then
+                echo "Splitting $file..."
+                split -b 90M "$file" "${file}.part"
+                rm "$file"
+              fi
+            fi
+          done
+          cd ..
+
+      - name: Generate download links README
+        run: |
+          python3 << 'EOF'
+          import os
+          import urllib.parse
+
+          repo = os.environ.get("GITHUB_REPOSITORY")
+          branch = "main"
+          videos_dir = "videos"
+
+          lines = []
+          lines.append("# 📥 Video Downloads\n")
+          lines.append("| File | Download |\n")
+          lines.append("|------|----------|\n")
+
+          for filename in sorted(os.listdir(videos_dir)):
+              if filename == "README.md":
+                  continue
+              encoded = urllib.parse.quote(filename)
+              url = f"https://github.com/{repo}/raw/{branch}/videos/{encoded}"
+              lines.append(f"| {filename} | [⬇️ Download]({url}) |\n")
+
+          with open(os.path.join(videos_dir, "README.md"), "w") as f:
+              f.writelines(lines)
+
+          print("README.md generated successfully")
+          EOF
+
+      - name: Commit and push to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add videos/
+          git commit -m "Add downloaded video"
+          git push
