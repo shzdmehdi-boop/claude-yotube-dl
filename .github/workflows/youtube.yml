@@ -21,13 +21,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get install -y ffmpeg nodejs
+          sudo apt-get install -y ffmpeg
           pip install yt-dlp
-
-      - name: Setup yt-dlp with Node.js EJS
-        run: |
-          npm install -g yt-dlp-ejs
-          yt-dlp --version
 
       - name: Download video
         env:
@@ -35,7 +30,6 @@ jobs:
         run: |
           mkdir -p videos
 
-          # Write cookies if provided
           if [ -n "$YOUTUBE_COOKIES" ]; then
             echo "$YOUTUBE_COOKIES" | base64 -d > cookies.txt
             COOKIE_ARG="--cookies cookies.txt"
