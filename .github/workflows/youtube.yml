@@ -13,10 +13,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install FFmpeg (For Video/Audio Merging)
+      - name: Install System Tools (Node.js & FFmpeg)
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          # We install Node.js directly so the bot can solve YouTube's puzzles!
+          sudo apt-get install -y nodejs ffmpeg
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -30,14 +31,21 @@ jobs:
           pip install curl-cffi
 
       - name: Download Video
+        env:
+          # Bringing your cookies back!
+          COOKIES: ${{ secrets.YT_COOKIES }}
         run: |
           mkdir -p videos
+          echo "$COOKIES" > cookies.txt
           
-          # 1. Impersonate Chrome to bypass Data Center blocks
-          # 2. Force the Android App to bypass JS Security Puzzles
+          # THE ULTIMATE COMBO:
+          # 1. Uses your Cookies to prove you are human
+          # 2. Impersonates Chrome
+          # 3. Uses Android/iOS mobile versions
           yt-dlp \
+            --cookies cookies.txt \
             --impersonate "chrome" \
-            --extractor-args "youtube:client=android" \
+            --extractor-args "youtube:client=android,ios,web" \
             -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
             --merge-output-format mp4 \
             -o "videos/%(title)s.%(ext)s" \
