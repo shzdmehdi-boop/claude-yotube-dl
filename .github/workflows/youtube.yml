@@ -12,12 +12,17 @@ on:
         required: false
         default: 'best'
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   download:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dependencies
         run: |
@@ -51,9 +56,24 @@ jobs:
               -o "videos/%(title)s.%(ext)s" "${{ inputs.url }}"
           fi
 
-      - name: Upload as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: downloaded-video
-          path: videos/
-          retention-days: 7
+      - name: Split large files
+        run: |
+          cd videos
+          for file in *; do
+            # Check if file is larger than 90MB
+            size=$(stat -c%s "$file")
+            if [ $size -gt 94371840 ]; then
+              echo "Splitting $file..."
+              split -b 90M "$file" "${file}.part"
+              rm "$file"
+            fi
+          done
+          cd ..
+
+      - name: Commit and push to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add videos/
+          git commit -m "Add downloaded video"
+          git push
