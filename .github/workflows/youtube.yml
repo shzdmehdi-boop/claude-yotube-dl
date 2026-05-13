@@ -36,7 +36,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg rar
           pip install yt-dlp
 
       - name: Download video
@@ -63,21 +63,23 @@ jobs:
               -o "videos/%(title)s.%(ext)s" "${{ inputs.url }}"
           fi
 
-      - name: Check file size and warn if too large
+      - name: Split large files with RAR
         run: |
-          for file in videos/*; do
-            if [ -f "$file" ] && [ "$file" != "videos/README.md" ]; then
+          cd videos
+          for file in *; do
+            if [ -f "$file" ] && [ "$file" != "README.md" ]; then
               size=$(stat -c%s "$file")
               sizemb=$(($size / 1024 / 1024))
-              echo "File size: ${sizemb}MB"
-              if [ $size -gt 524288000 ]; then
-                echo "❌ ERROR: File is ${sizemb}MB — too large for GitHub (max ~500MB)."
-                echo "👉 Please re-run with a lower quality like 720 or 480."
+              echo "File: $file — ${sizemb}MB"
+              if [ $size -gt 94371840 ]; then
+                echo "Splitting $file into 90MB RAR parts..."
+                rar a -v90m -ep "${file}.rar" "$file"
                 rm "$file"
-                exit 1
+                echo "Split complete!"
               fi
             fi
           done
+          cd ..
 
       - name: Generate download links README
         run: |
