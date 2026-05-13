@@ -1,0 +1,34 @@
+name: Clear Videos Folder
+
+on:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  clear:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+
+      - name: Remove all files from videos folder
+        run: |
+          if [ -d "videos" ]; then
+            rm -f videos/*
+            echo "✅ All files removed from videos folder"
+          else
+            echo "videos folder does not exist"
+          fi
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add videos/
+          git diff --staged --quiet || git commit -m "Clear videos folder"
+          git push
