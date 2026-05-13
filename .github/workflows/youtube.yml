@@ -8,9 +8,9 @@ on:
         required: true
         type: string
       quality:
-        description: 'Quality (best, 1080, 720, audio-only)'
+        description: 'Quality (720, 480, 360, audio-only)'
         required: false
-        default: 'best'
+        default: '720'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -47,30 +47,25 @@ jobs:
             yt-dlp $COOKIE_ARG --js-runtimes node --remote-components ejs:github \
               -x --audio-format mp3 \
               -o "videos/%(title)s.%(ext)s" "${{ inputs.url }}"
-          elif [ "${{ inputs.quality }}" = "best" ]; then
-            yt-dlp $COOKIE_ARG --js-runtimes node --remote-components ejs:github \
-              -f "bestvideo+bestaudio" --merge-output-format mp4 \
-              -o "videos/%(title)s.%(ext)s" "${{ inputs.url }}"
           else
             yt-dlp $COOKIE_ARG --js-runtimes node --remote-components ejs:github \
-              -f "bestvideo[height<=${{ inputs.quality }}]+bestaudio" --merge-output-format mp4 \
+              -f "bestvideo[height<=${{ inputs.quality }}][ext=mp4]+bestaudio[ext=m4a]" \
+              --merge-output-format mp4 \
               -o "videos/%(title)s.%(ext)s" "${{ inputs.url }}"
           fi
 
-      - name: Split large files
+      - name: Check file size and abort if too large
         run: |
-          cd videos
-          for file in *; do
-            if [ -f "$file" ] && [ "$file" != "README.md" ]; then
+          for file in videos/*; do
+            if [ -f "$file" ] && [ "$file" != "videos/README.md" ]; then
               size=$(stat -c%s "$file")
-              if [ $size -gt 94371840 ]; then
-                echo "Splitting $file..."
-                split -b 90M "$file" "${file}.part"
+              if [ $size -gt 524288000 ]; then
+                echo "ERROR: $file is larger than 500MB ($(($size / 1024 / 1024))MB). Too large for GitHub. Use audio-only or lower quality."
                 rm "$file"
+                exit 1
               fi
             fi
           done
-          cd ..
 
       - name: Generate download links README
         run: |
@@ -105,5 +100,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add videos/
-          git commit -m "Add downloaded video"
+          git diff --staged --quiet || git commit -m "Add downloaded video"
           git push
