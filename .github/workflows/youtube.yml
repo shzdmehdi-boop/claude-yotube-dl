@@ -8,9 +8,18 @@ on:
         required: true
         type: string
       quality:
-        description: 'Quality (720, 480, 360, audio-only)'
+        description: 'Quality (360, 480, 720, 1080, 1440, 2160, audio-only)'
         required: false
         default: '720'
+        type: choice
+        options:
+          - '360'
+          - '480'
+          - '720'
+          - '1080'
+          - '1440'
+          - '2160'
+          - 'audio-only'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -54,13 +63,16 @@ jobs:
               -o "videos/%(title)s.%(ext)s" "${{ inputs.url }}"
           fi
 
-      - name: Check file size and abort if too large
+      - name: Check file size and warn if too large
         run: |
           for file in videos/*; do
             if [ -f "$file" ] && [ "$file" != "videos/README.md" ]; then
               size=$(stat -c%s "$file")
+              sizemb=$(($size / 1024 / 1024))
+              echo "File size: ${sizemb}MB"
               if [ $size -gt 524288000 ]; then
-                echo "ERROR: $file is larger than 500MB ($(($size / 1024 / 1024))MB). Too large for GitHub. Use audio-only or lower quality."
+                echo "❌ ERROR: File is ${sizemb}MB — too large for GitHub (max ~500MB)."
+                echo "👉 Please re-run with a lower quality like 720 or 480."
                 rm "$file"
                 exit 1
               fi
