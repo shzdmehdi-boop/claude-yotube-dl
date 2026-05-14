@@ -33,6 +33,10 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           persist-credentials: true
+          fetch-depth: 0
+
+      - name: Pull latest changes
+        run: git pull origin main --rebase
 
       - name: Install dependencies
         run: |
@@ -71,9 +75,9 @@ jobs:
               size=$(stat -c%s "$file")
               sizemb=$(($size / 1024 / 1024))
               echo "File: $file — ${sizemb}MB"
-              if [ $size -gt 94371840 ]; then
-                echo "Splitting $file into 90MB RAR parts..."
-                rar a -v90m -ep "${file}.rar" "$file"
+              if [ $size -gt 47185920 ]; then
+                echo "Splitting $file into 45MB RAR parts..."
+                rar a -v45m -ep "${file}.rar" "$file"
                 rm "$file"
                 echo "Split complete!"
               fi
