@@ -41,7 +41,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get install -y ffmpeg rar
-          pip install yt-dlp
+          pip install yt-dlp openpyxl
 
       - name: Download video
         env:
@@ -71,7 +71,7 @@ jobs:
         run: |
           cd videos
           for file in *; do
-            if [ -f "$file" ] && [ "$file" != "README.md" ]; then
+            if [ -f "$file" ] && [ "$file" != "README.md" ] && [[ "$file" != *.xlsx ]]; then
               size=$(stat -c%s "$file")
               sizemb=$(($size / 1024 / 1024))
               echo "File: $file — ${sizemb}MB"
@@ -85,32 +85,107 @@ jobs:
           done
           cd ..
 
-      - name: Generate download links README
+      - name: Generate README and Excel download links
         run: |
+          pip install openpyxl -q
           python3 << 'EOF'
           import os
           import urllib.parse
+          from openpyxl import Workbook
+          from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+          from openpyxl.utils import get_column_letter
 
           repo = os.environ.get("GITHUB_REPOSITORY")
           branch = "main"
           videos_dir = "videos"
 
+          files = sorted([f for f in os.listdir(videos_dir) if f != "README.md" and not f.endswith(".xlsx")])
+
+          # --- Generate README ---
           lines = []
           lines.append("# 📥 Video Downloads\n")
-          lines.append("| File | Download |\n")
-          lines.append("|------|----------|\n")
-
-          for filename in sorted(os.listdir(videos_dir)):
-              if filename == "README.md":
-                  continue
+          lines.append("| # | File | Download |\n")
+          lines.append("|---|------|----------|\n")
+          for i, filename in enumerate(files, 1):
               encoded = urllib.parse.quote(filename)
               url = f"https://github.com/{repo}/raw/{branch}/videos/{encoded}"
-              lines.append(f"| {filename} | [⬇️ Download]({url}) |\n")
-
+              lines.append(f"| {i} | {filename} | [⬇️ Download]({url}) |\n")
           with open(os.path.join(videos_dir, "README.md"), "w") as f:
               f.writelines(lines)
 
-          print("README.md generated successfully")
+          # --- Generate Excel ---
+          wb = Workbook()
+          ws = wb.active
+          ws.title = "Video Downloads"
+
+          # styles
+          header_fill = PatternFill("solid", fgColor="1F4E79")
+          header_font = Font(bold=True, color="FFFFFF", size=12)
+          link_font = Font(color="0563C1", underline="single", size=11)
+          alt_fill = PatternFill("solid", fgColor="D6E4F0")
+          border = Border(
+              left=Side(style="thin"),
+              right=Side(style="thin"),
+              top=Side(style="thin"),
+              bottom=Side(style="thin")
+          )
+          center = Alignment(horizontal="center", vertical="center")
+          left = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+          # header row
+          headers = ["#", "File Name", "Download Link"]
+          for col, h in enumerate(headers, 1):
+              cell = ws.cell(row=1, column=col, value=h)
+              cell.font = header_font
+              cell.fill = header_fill
+              cell.alignment = center
+              cell.border = border
+
+          ws.row_dimensions[1].height = 25
+
+          # data rows
+          for i, filename in enumerate(files, 1):
+              encoded = urllib.parse.quote(filename)
+              url = f"https://github.com/{repo}/raw/{branch}/videos/{encoded}"
+              row = i + 1
+
+              # number
+              c1 = ws.cell(row=row, column=1, value=i)
+              c1.alignment = center
+              c1.border = border
+              if i % 2 == 0:
+                  c1.fill = alt_fill
+
+              # filename
+              c2 = ws.cell(row=row, column=2, value=filename)
+              c2.alignment = left
+              c2.border = border
+              if i % 2 == 0:
+                  c2.fill = alt_fill
+
+              # hyperlink
+              c3 = ws.cell(row=row, column=3, value="⬇️ Download")
+              c3.hyperlink = url
+              c3.font = link_font
+              c3.alignment = center
+              c3.border = border
+              if i % 2 == 0:
+                  c3.fill = alt_fill
+
+              ws.row_dimensions[row].height = 20
+
+          # column widths
+          ws.column_dimensions["A"].width = 6
+          ws.column_dimensions["B"].width = 60
+          ws.column_dimensions["C"].width = 20
+
+          # freeze header
+          ws.freeze_panes = "A2"
+
+          excel_path = os.path.join(videos_dir, "download_links.xlsx")
+          wb.save(excel_path)
+          print(f"Excel file saved: {excel_path}")
+          print(f"Total files: {len(files)}")
           EOF
 
       - name: Commit and push to repo
